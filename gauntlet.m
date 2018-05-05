@@ -4,8 +4,8 @@ clear all
 x_neato = -2;
 y_neato = 0;
 
-x_bob = 2.14;
-y_bob = 1.54;
+x_bob = 0.33274;
+y_bob = 1.8288;
 
 syms x y
 f = -log(sqrt((x -x_bob)^2 + (y-y_bob)^2));
