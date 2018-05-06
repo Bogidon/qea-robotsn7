@@ -1,19 +1,14 @@
 clear;
 load gauntlet_map/map.mat
 %%
+[x1,x2,y1,y2,inliers] = ransacLine(data,20,0.5,4);
+%%
 clf;
 hold on;
-while numel(data) > 50
-    [x1,x2,y1,y2,inliers] = ransacLine(data,200,0.5,3);
-    plot([x1 x2],[y1 y2],'r');
-    plot(inliers(:,1),inliers(:,2),'go');
-    data = setdiff(data,inliers,'rows');
-    numel(data)
-end
 plot(data(:,1),data(:,2),'b*');
+plot([x1 x2],[y1 y2],'r');
+plot(inliers(:,1),inliers(:,2),'go');
 hold off;
-%%
-
 %%
 function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap)
     x = data(:,1);
@@ -48,19 +43,19 @@ function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap
         end
         [dist, ii] = sort(dist);
         s_inliers = inlier_points(ii,:);
-        dists = [0 diff(dist)'];
+        dists = [0 diff(dist)];
         % cluster points
         clusters = {};
         current_line = [];
         for i_d = 1:length(dists)
             di = dists(i_d);
             if di < d_gap
-                current_line = [current_line ; s_inliers(i_d, :)];
+                current_line(i_d, 1:2) = s_inliers(i_d, :);
             else
                 if ~isempty(current_line)
                     clusters{end+1} = current_line;
+                    current_line = [];
                 end
-                current_line = [];
             end
         end
         
@@ -77,13 +72,15 @@ function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap
         
         % recalculate line from largest cluster
         [inliers,clusters_n_max] = max(clusters_n);
-        inlier_points = clusters{clusters_n_max};
+        inlier_points = clusters{clusters_n_max}
+        if inlier_points(1,:) == [0 0]
+            "crap"
+        end
         [x1, x2, y1, y2] = calc_endpoints(inlier_points);
         points = [x1, y1, x2, y2];
         
         % return variable to access data outside loop
-        stuff = {points inliers {inlier_points}};
-        calculated_lines = [calculated_lines; stuff];
+        calculated_lines = [calculated_lines;{points inliers inlier_points}];
     end
     [~,I] = max(calculated_lines.b2);
     x1 = calculated_lines.b1(I,1);
