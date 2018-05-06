@@ -1,0 +1,3 @@
+vertical line running 84in in y:
+<line class="st0" x1="4752" y1="6048" x2="0" y2="6048"/>
+so scale = 6048/84
