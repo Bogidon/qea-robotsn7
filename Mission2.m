@@ -1,30 +1,34 @@
 clear;
 clear global
 load gauntlet_map/map.mat
+[inliers_circle, inliers_lines] = org_points(data);
 clf;
 hold on;
 plot(data(:,1),data(:,2),'b*');
-found_circle = false;
-while numel(data) > 0
-    [x1,x2,y1,y2,inliers_line] = ransacLine(data,50,0.05,3);
-    
-    if ~found_circle
-        [center,radius,inliers_circle] = ransacCircle(data, 500, 0.05);
-    end
-    
-    if found_circle || size(inliers_line,1) > size(inliers_circle,1)
-        inliers = inliers_line;
-        plot([x1 x2],[y1 y2],'r');
-    else
-        found_circle = true;
-        inliers = inliers_circle;
-        viscircles(center,radius,'Color','k')
-    end
-    plot(inliers(:,1),inliers(:,2),'go');
-    drawnow;
-    data = setdiff(data,inliers,'rows');
-end
+plot(inliers_circle(:,1),inliers_circle(:,2),'g*');
+plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
 hold off;
+% found_circle = false;
+% while numel(data) > 0
+%     [x1,x2,y1,y2,inliers_line] = ransacLine(data,50,0.05,3);
+%     
+%     if ~found_circle
+%         [center,radius,inliers_circle] = ransacCircle(data, 500, 0.05);
+%     end
+%     
+%     if found_circle || size(inliers_line,1) > size(inliers_circle,1)
+%         inliers = inliers_line;
+%         plot([x1 x2],[y1 y2],'r');
+%     else
+%         found_circle = true;
+%         inliers = inliers_circle;
+%         viscircles(center,radius,'Color','k')
+%     end
+%     plot(inliers(:,1),inliers(:,2),'go');
+%     drawnow;
+%     data = setdiff(data,inliers,'rows');
+% end
+% hold off;
 
 %%
 function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap)
@@ -171,4 +175,29 @@ function [x1, x2, y1, y2] = calc_endpoints(points)
         y1 = points(i1,2);
         y2 = points(i2,2);
     end
+end
+
+function [inliers_circle, inliers_lines] = org_points(data)
+    data = data;
+    found_circle = false;
+    l_in = []; c_in = [];
+    while numel(data) > 0
+        [x1,x2,y1,y2,inliers_line] = ransacLine(data,50,0.05,3);
+
+        if ~found_circle
+            [center,radius,inliers_circle] = ransacCircle(data, 500, 0.05);
+        end
+
+        if found_circle || size(inliers_line,1) > size(inliers_circle,1)
+            inliers = inliers_line;
+            l_in = [l_in; inliers_line];
+        else
+            found_circle = true;
+            inliers = inliers_circle;
+            c_in = inliers_circle;
+        end
+        data = setdiff(data,inliers,'rows');
+    end
+    inliers_circle = c_in;
+    inliers_lines = l_in;
 end
