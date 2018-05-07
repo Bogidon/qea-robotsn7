@@ -2,42 +2,98 @@ clear;
 clear global
 %%
 load gauntlet_map/map.mat
+data = data .* 0.0254;
+global v_pub
+global v_msg
+v_pub = rospublisher('/raw_vel');
+v_msg = rosmessage(v_pub);
+sub_bump = rossubscriber('/bump');
+sub_encoder = rossubscriber('/encoders');
+
+%%
 [inliers_circle, inliers_lines] = org_points(data);
 inliers_circle = inliers_circle; 
 
-figure(fig1)
-clf
-range_min = -30;
-range_max = 80;
-[X,Y] = meshgrid([range_min:1:range_max],[range_min:1:range_max]);
+range_min = -0.762;
+range_max = 2.032;
+step = 0.01;
+[X,Y] = meshgrid([range_min:step:range_max],[range_min:step:range_max]);
 Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1);
 Z = reshape(Z,size(X));
-
-hold on
-contour(X,Y,Z)
 
 [gx, gy] = gradient(Z);
 gx = cap(gx,2);
 gy = cap(gy,2);
+
+clf
+hold on
+ax = gca;
+contour(X,Y,Z)
 plot(data(:,1),data(:,2),'b*');
 quiver(X,Y,gx,gy)
-hold off
 
-figure(fig2)
-clf
-surf(X,Y,Z)
-title("the real mount doom")
-zlabel("degree of terror")
-xlabel("wimp zone")
-ylabel("hero zone")
+% figure
+% surf(X,Y,Z)
+%%
+d = 0.234;
+v_max = 0.15;
 
+data_encoder = [];
+data_theta = [0];
+data_r = [0 0];
 
-% clf;
-% hold on;
-% plot(data(:,1),data(:,2),'b*');
-% plot(inliers_circle(:,1),inliers_circle(:,2),'g*');
-% plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
-% hold off;
+bump = 0;
+while ~bump
+    bumpd = receive(sub_bump);
+    bump = any(bumpd.Data);
+    
+    pause(0.1)
+    
+    encoder = receive(sub_encoder);
+    encoder = encoder.Data;
+    
+    % skip first + second cycle
+    if size(data_encoder,1) == 0
+        data_encoder(1,:) = encoder';
+        continue
+    elseif size(data_encoder,1) == 1
+        data_encoder(2,:) = encoder';
+        continue
+    end
+    
+    data_encoder = [data_encoder(2,:) ; encoder'];
+    v_wheels = diff(data_encoder);
+    v = mean(v_wheels);
+    
+    w = rad2deg((v_wheels(2) - v_wheels(1))/d);
+    theta = data_theta(end) + w
+    T_hat = [cosd(theta) sind(theta)];
+    drdt = v*T_hat;
+    r = data_r(end,:) + drdt;
+    
+    data_theta(end+1) = theta;
+    data_r(end+1,:) = r;
+    
+    distances = sqrt((X-r(1)).^2 + (Y-r(2)).^2);
+    [~, I] = min(distances);
+    g_neato = [gx(I) gy(I)];
+    gradient_move(g_neato, T_hat, v_max);
+    
+%     plot(ax, r(1),r(2),"b*");
+    
+%     set(q_grad,...
+%         'xdata',r(1),...
+%         'ydata',r(2),...
+%         'udata',r(1)+g_neato(1),...
+%         'vdata',r(2)+g_neato(2))
+%     
+%     set(q_heading,...
+%         'xdata',r(1),...
+%         'ydata',r(2),...
+%         'udata',r(1)+T_hat(1),...
+%         'vdata',r(2)+T_hat(2))
+end
+sendVel(0,0);
 %%
 function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap)
     if size(data,1) == 1
@@ -239,4 +295,27 @@ function z = generate_scalar_field(attract_points, repell_points, grid_x, grid_y
         
         z(i_grid) = z_i;
     end
+end
+
+function gradient_move(g_neato, T_hat, v_max)
+    u = g_neato;
+    v = T_hat;
+    phi = -(atan2d(u(1)*v(2)-u(2)*v(1),u(1)*v(1)+u(2)*v(2)));
+    
+    a = (1/180)*phi;
+    b = (-1/180)*phi + 1;
+    rotation = ((180-phi)/abs(180-phi))*v_max*a;
+    forward = v_max*b;
+    
+    vr = rotation + forward;
+    vl = -rotation + forward;
+    sendVel(vl,vr);
+end
+
+function sendVel(vl, vr)
+    global v_pub
+    global v_msg
+    sprintf("VL: %.4d, VR: %.4d", vl, vr);
+    v_msg.Data = [vl vr];
+    send(v_pub, v_msg);
 end
