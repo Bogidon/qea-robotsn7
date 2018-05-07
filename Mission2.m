@@ -1,35 +1,43 @@
 clear;
 clear global
+%%
 load gauntlet_map/map.mat
 [inliers_circle, inliers_lines] = org_points(data);
-clf;
-hold on;
-plot(data(:,1),data(:,2),'b*');
-plot(inliers_circle(:,1),inliers_circle(:,2),'g*');
-plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
-hold off;
-% found_circle = false;
-% while numel(data) > 0
-%     [x1,x2,y1,y2,inliers_line] = ransacLine(data,50,0.05,3);
-%     
-%     if ~found_circle
-%         [center,radius,inliers_circle] = ransacCircle(data, 500, 0.05);
-%     end
-%     
-%     if found_circle || size(inliers_line,1) > size(inliers_circle,1)
-%         inliers = inliers_line;
-%         plot([x1 x2],[y1 y2],'r');
-%     else
-%         found_circle = true;
-%         inliers = inliers_circle;
-%         viscircles(center,radius,'Color','k')
-%     end
-%     plot(inliers(:,1),inliers(:,2),'go');
-%     drawnow;
-%     data = setdiff(data,inliers,'rows');
-% end
-% hold off;
+inliers_circle = inliers_circle; 
 
+figure(fig1)
+clf
+range_min = -30;
+range_max = 80;
+[X,Y] = meshgrid([range_min:1:range_max],[range_min:1:range_max]);
+Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1);
+Z = reshape(Z,size(X));
+
+hold on
+contour(X,Y,Z)
+
+[gx, gy] = gradient(Z);
+gx = cap(gx,2);
+gy = cap(gy,2);
+plot(data(:,1),data(:,2),'b*');
+quiver(X,Y,gx,gy)
+hold off
+
+figure(fig2)
+clf
+surf(X,Y,Z)
+title("the real mount doom")
+zlabel("degree of terror")
+xlabel("wimp zone")
+ylabel("hero zone")
+
+
+% clf;
+% hold on;
+% plot(data(:,1),data(:,2),'b*');
+% plot(inliers_circle(:,1),inliers_circle(:,2),'g*');
+% plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
+% hold off;
 %%
 function [x1,x2,y1,y2,inliers] = ransacLine(data,num_runs,d_perpendicular, d_gap)
     if size(data,1) == 1
@@ -200,4 +208,35 @@ function [inliers_circle, inliers_lines] = org_points(data)
     end
     inliers_circle = c_in;
     inliers_lines = l_in;
+end
+
+function out = cap(x, threshold)
+    x(x>0 & x>threshold) = threshold;
+    x(x<0 & abs(x)>threshold) = -threshold;
+    out = x;
+end
+
+function z = generate_scalar_field(attract_points, repell_points, grid_x, grid_y, attract_power, repell_power)
+    N_grid = numel(grid_x);
+    N_attract = size(attract_points,1);
+    N_repell = size(repell_points,1);
+    z = zeros(N_grid,1);
+    for i_grid = 1:N_grid
+        x = grid_x(i_grid); y = grid_y(i_grid);
+
+        z_i = 0;
+        for i_attract = 1:N_attract
+            attract_point = attract_points(i_attract,:);
+            x_i = attract_point(1); y_i = attract_point(2); 
+            z_i = z_i - attract_power*log(sqrt((x-x_i)^2 + (y-y_i)^2));
+        end
+        
+        for i_repell = 1:N_repell
+            repell_point = repell_points(i_repell,:);
+            x_i = repell_point(1); y_i = repell_point(2); 
+            z_i = z_i + repell_power*log(sqrt((x-x_i)^2 + (y-y_i)^2));
+        end
+        
+        z(i_grid) = z_i;
+    end
 end
