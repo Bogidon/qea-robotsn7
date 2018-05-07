@@ -2,14 +2,16 @@ clear;
 clear global
 %%
 load gauntlet_map/map.mat
-[inliers_circle, inliers_lines] = org_points(data);
-inliers_circle = inliers_circle; 
+data = data .* 0.0254;
+%%
+[inliers_circle, inliers_lines] = org_points(data,50,0.00127,0.0762);
 
 figure(fig1)
 clf
-range_min = -30;
-range_max = 80;
-[X,Y] = meshgrid([range_min:1:range_max],[range_min:1:range_max]);
+range_min = -0.762;
+range_max = 2.032;
+step = 0.05;
+[X,Y] = meshgrid([range_min:step:range_max],[range_min:step:range_max]);
 Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1);
 Z = reshape(Z,size(X));
 
@@ -17,9 +19,10 @@ hold on
 contour(X,Y,Z)
 
 [gx, gy] = gradient(Z);
-gx = cap(gx,2);
-gy = cap(gy,2);
-plot(data(:,1),data(:,2),'b*');
+gx = cap(gx,5);
+gy = cap(gy,5);
+plot(inliers_circle(:,1),inliers_circle(:,2),'b*');
+plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
 quiver(X,Y,gx,gy)
 hold off
 
@@ -185,15 +188,15 @@ function [x1, x2, y1, y2] = calc_endpoints(points)
     end
 end
 
-function [inliers_circle, inliers_lines] = org_points(data)
+function [inliers_circle, inliers_lines] = org_points(data,num_runs,d_perpendicular, d_gap)
     data = data;
     found_circle = false;
     l_in = []; c_in = [];
     while numel(data) > 0
-        [x1,x2,y1,y2,inliers_line] = ransacLine(data,50,0.05,3);
+        [x1,x2,y1,y2,inliers_line] = ransacLine(data,num_runs,d_perpendicular, d_gap);
 
         if ~found_circle
-            [center,radius,inliers_circle] = ransacCircle(data, 500, 0.05);
+            [center,radius,inliers_circle] = ransacCircle(data, 500, d_perpendicular);
         end
 
         if found_circle || size(inliers_line,1) > size(inliers_circle,1)
