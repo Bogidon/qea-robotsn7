@@ -17,7 +17,7 @@ range_min = -0.762;
 range_max = 2.032;
 step = 0.05;
 [X,Y] = meshgrid([range_min:step:range_max],[range_min:step:range_max]);
-Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1);
+Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1.1);
 Z = reshape(Z,size(X));
 
 [gx, gy] = gradient(Z);
@@ -33,7 +33,7 @@ contour(X,Y,Z)
 plot(inliers_circle(:,1),inliers_circle(:,2),'b*');
 plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
 quiver(X,Y,gx,gy)
-title("Mission 2");
+title("Mission 2: hard");
 
 % figure(fig2)
 % surf(X,Y,Z)
@@ -43,7 +43,7 @@ v_max = 0.15;
 
 data_encoder = [];
 data_theta = [0];
-data_r = [0 0];
+data_r = [0.6096 0];
 
 bump = 0;
 while ~bump
@@ -310,6 +310,9 @@ function gradient_move(g_neato, T_hat, v_max)
     b = (-1/180)*phi + 1;
     rotation = ((180-phi)/abs(180-phi))*v_max*a;
     forward = v_max*b;
+    
+    rotation = rotation * 3/2;
+    forward = forward * 1/2;
     
     vr = rotation + forward;
     vl = -rotation + forward;
