@@ -1,5 +1,5 @@
-clear;
-clear global
+% clear;
+% clear global
 %%
 load gauntlet_map/map.mat
 data = data .* 0.0254;
@@ -15,7 +15,7 @@ sub_encoder = rossubscriber('/encoders');
 
 range_min = -0.762;
 range_max = 2.032;
-step = 0.01;
+step = 0.05;
 [X,Y] = meshgrid([range_min:step:range_max],[range_min:step:range_max]);
 Z = generate_scalar_field(inliers_circle,inliers_lines,X,Y,7,1);
 Z = reshape(Z,size(X));
@@ -33,10 +33,10 @@ contour(X,Y,Z)
 plot(inliers_circle(:,1),inliers_circle(:,2),'b*');
 plot(inliers_lines(:,1),inliers_lines(:,2),'r*');
 quiver(X,Y,gx,gy)
-hold off
+title("Mission 2");
 
-figure(fig2)
-surf(X,Y,Z)
+% figure(fig2)
+% surf(X,Y,Z)
 %%
 d = 0.234;
 v_max = 0.15;
@@ -78,11 +78,12 @@ while ~bump
     data_r(end+1,:) = r;
     
     distances = sqrt((X-r(1)).^2 + (Y-r(2)).^2);
-    [~, I] = min(distances);
+    I = find(distances == min(distances(:)));
+    
     g_neato = [gx(I) gy(I)];
     gradient_move(g_neato, T_hat, v_max);
     
-%     plot(ax, r(1),r(2),"b*");
+    plot(ax, r(1),r(2),'b*');
     
 %     set(q_grad,...
 %         'xdata',r(1),...
